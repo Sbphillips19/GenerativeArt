@@ -1,0 +1,328 @@
+float camX, camY, camZ;
+float camAngle = 0.0;
+int xspacing = 28; // Increased spacing for clearer wave patterns
+int w;             // Width of the wave
+int maxwaves = 8;  // Increased number of waves for more complexity
+int numHexagons = 10;
+float theta = 0.0;
+float[] amplitude = new float[maxwaves];
+float[] dx = new float[maxwaves];
+float[] yvalues;
+ArrayList<Chain> chains;
+color ethereumColor = color(113,107,148);
+color optimismColor = color(255, 4, 32);
+color baseColor = color(0, 82, 255);
+
+void setup() {
+    size(800, 800, P3D);
+    w = width + 26;
+    chains = new ArrayList<Chain>();
+
+    Chain initialChain = new Chain(optimismColor);
+    for (int i = 0; i < numHexagons; i++) {
+        float hexSize = random(20, 60);
+        initialChain.addHexagon(new Hexagon(random(width), random(height), hexSize, optimismColor));
+    }
+    chains.add(initialChain);
+    
+     for (int i = 0; i < maxwaves; i++) {
+        amplitude[i] = random(10, 30); // Adjusted amplitude for visibility
+        float period = random(100, 600); // Wider range for period
+        dx[i] = (TWO_PI / period) * xspacing;
+    }
+
+    yvalues = new float[w / xspacing];
+
+    camX = width / 2.0;
+    camY = height / 2.0;
+    camZ = (height / 2.0) / tan(PI / 6.0);
+}
+
+
+class Hexagon {
+    PVector center;
+    PVector velocity;
+    float size;
+    color hexColor;
+    float maxSize = 60; // Maximum size before splitting
+
+    Hexagon(float x, float y, float s, color hexC) {
+        center = new PVector(x, y);
+        size = s;
+        hexColor = hexC;
+        // Random velocity for movement
+        // I like when the hexagons move a bit faster, but not too fast
+        velocity = PVector.random2D().mult(random(3, 7));
+    }
+
+    void update() {
+        center.add(velocity);
+
+        // Reverse direction if it hits the edge
+        if (center.x < 0 || center.x > width) velocity.x *= -1;
+        if (center.y < 0 || center.y > height) velocity.y *= -1;
+
+        if (frameCount % 30 == 0) {
+          // can adjust the speed at which the hexagon gets bigger
+          // also the rate at how fast it changes
+            size += 4;
+        }
+        size = constrain(size, 0, maxSize);
+    }
+
+    void display() {
+        pushMatrix();
+        translate(center.x, center.y);
+        // Interpolate alpha from 128 (half opacity) to 255 (full opacity)
+        float currentAlpha = lerp(128, 255, size / maxSize);
+        fill(red(hexColor), green(hexColor), blue(hexColor), currentAlpha);
+        noStroke();
+        beginShape();
+        for (int i = 0; i < 6; i++) {
+            float angle = TWO_PI / 6 * i;
+            vertex(cos(angle) * size, sin(angle) * size);
+        }
+        endShape(CLOSE);
+        popMatrix();
+    }
+
+    // function to check if the nodes/ hexagons should split into 2 hexagons
+    boolean shouldSplit() {
+        return size >= maxSize;
+    }
+
+    // function to actually the hexagons
+    ArrayList<Hexagon> split() {
+        ArrayList<Hexagon> newHexagons = new ArrayList<Hexagon>();
+        // making the new size 4x smaller than original
+        float newSize = maxSize / 4;
+        // adding 2 new hexagons
+        newHexagons.add(new Hexagon(center.x + random(-10, 10), center.y + random(-10, 10), newSize, hexColor));
+        newHexagons.add(new Hexagon(center.x + random(-10, 10), center.y + random(-10, 10), newSize, hexColor));
+        return newHexagons;
+    }
+}
+
+// This is the specific chain
+// optimism - main OG chain
+// Base - second developer of the OP stack
+// Ethereum - because so far just 2 chains but want to show concept of more adding chain which OP is built off
+class Chain {
+    ArrayList<Hexagon> hexagons;
+    color chainColor;
+
+    Chain(color c) {
+        hexagons = new ArrayList<Hexagon>();
+        chainColor = c;
+    }
+
+    void addHexagon(Hexagon hex) {
+        hexagons.add(hex);
+    }
+
+    void updateAndDisplay() {
+        for (int i = hexagons.size() - 1; i >= 0; i--) {
+            Hexagon hex = hexagons.get(i);
+            hex.update();
+            hex.display();
+            if (hex.shouldSplit()) {
+                hexagons.addAll(hex.split());
+                hexagons.remove(i);
+            }
+        }
+    }
+    
+    // network connections between the hexagons
+    void drawNetworkConnections() {
+        stroke(chainColor); // Use the chain's color for connections
+        for (int i = 0; i < hexagons.size(); i++) {
+            Hexagon hex1 = hexagons.get(i);
+            for (int j = i + 1; j < hexagons.size(); j++) {
+                Hexagon hex2 = hexagons.get(j);
+                line(hex1.center.x, hex1.center.y, hex2.center.x, hex2.center.y);
+            }
+        }
+    }
+    
+    // This is another way where they aren't all connected
+    // Toyed with this for awhile and decided I liked the above better
+    
+    //void drawNetworkConnections() {
+    //    stroke(chainColor, 80); // Use the chain's color with some transparency
+    //    for (Hexagon hex : hexagons) {
+    //        Hexagon closest = findClosestHexagon(hex);
+    //        if (closest != null) {
+    //            line(hex.center.x, hex.center.y, closest.center.x, closest.center.y);
+    //        }
+    //    }
+    //}
+
+    //// Function to find the closest hexagon to a given one within the same chain
+    //Hexagon findClosestHexagon(Hexagon hex) {
+    //    Hexagon closest = null;
+    //    float minDist = Float.MAX_VALUE;
+    //    for (Hexagon other : hexagons) {
+    //        if (other != hex) {
+    //            float dist = PVector.dist(hex.center, other.center);
+    //            if (dist < minDist) {
+    //                minDist = dist;
+    //                closest = other;
+    //            }
+    //        }
+    //    }
+    //    return closest;
+    //}
+}
+
+
+// drawing the moving 3d boxes
+void draw3DBoxes() {
+    for (int x = -50; x <= width + 50; x += 50) {
+        for (int y = -50; y <= height; y += 50) {
+            pushMatrix();
+            translate(x, y, -90);
+            rotateY(map(mouseX, 0, width, 0, PI));
+            rotateX(map(mouseY, 0, height, 0, PI));
+            fill(255);
+            stroke(0);
+            box(30);
+            popMatrix();
+        }
+    }
+}
+
+void calcWave() {
+  // angular velocity/ how fast the wave moves 
+  theta += 0.02;
+
+  // Set all height values to zero
+  for (int i = 0; i < yvalues.length; i++) {
+    yvalues[i] = 0;
+  }
+ 
+  // Accumulate wave height values
+  for (int j = 0; j < maxwaves; j++) {
+    float x = theta;
+    for (int i = 0; i < yvalues.length; i++) {
+      // Every other wave is cosine instead of sine
+      if (j % 2 == 0)  yvalues[i] += sin(x)*amplitude[j];
+      else yvalues[i] += cos(x)*amplitude[j];
+      x+=dx[j];
+    }
+  }
+}
+
+void drawEthereumLogo(float centerX, float centerY, float scale) {
+    // Scaling factors based on the original SVG dimensions
+    float originalWidth = 784.37;
+    float originalHeight = 1277.39;
+
+    // Adjust scale for Processing
+    float processingScale = scale / originalHeight;
+
+    // Define the Ethereum logo coordinates based on the SVG
+    // Each pair in the array represents x, y coordinates
+    float[][] coordinates = {
+        {392.07f, 0f, 383.5f, 29.11f, 383.5f, 873.74f, 392.07f, 882.29f, 784.13f, 650.54f},
+        {392.07f, 0f, 0f, 650.54f, 392.07f, 882.29f, 392.07f, 472.33f},
+        {392.07f, 956.52f, 387.24f, 962.41f, 387.24f, 1263.28f, 392.07f, 1277.38f, 784.37f, 724.89f},
+        {392.07f, 1277.38f, 392.07f, 956.52f, 0f, 724.89f},
+        {392.07f, 882.29f, 784.13f, 650.54f, 392.07f, 472.33f},
+        {0f, 650.54f, 392.07f, 882.29f, 392.07f, 472.33f}
+    };
+
+    // Define the colors for each shape
+    int[] colors = {
+        #343434, #8C8C8C, #3C3C3B, #8C8C8C, #141414, #393939
+    };
+
+    // Draw each shape
+    for (int i = 0; i < coordinates.length; i++) {
+        fill(colors[i]);
+        beginShape();
+        for (int j = 0; j < coordinates[i].length; j += 2) {
+            float x = centerX + (coordinates[i][j] - originalWidth / 2) * processingScale;
+            float y = centerY + (coordinates[i][j + 1] - originalHeight / 2) * processingScale;
+            vertex(x, y);
+        }
+        endShape(CLOSE);
+    }
+}
+
+
+
+void renderWave() {
+  // commented out code is if we wanted to change the colors of the ETH logo floating at the bottom
+  // this would make it the chain colors
+  //int waveColorIndex = 0;
+  //color[] waveColors;
+  // Determine the wave colors based on the number of chains
+  //if (chains.size() == 1) {
+  //  waveColors = new color[]{optimismColor};
+  //} else if (chains.size() == 2) {
+  //  waveColors = new color[]{optimismColor, baseColor};
+  //} else {
+  //  waveColors = new color[]{optimismColor, baseColor, ethereumColor};
+  //}
+
+
+  for (int x = 0; x < yvalues.length; x++) {
+       pushStyle(); // Save the current style settings
+    //fill(waveColors[waveColorIndex]); // Set fill color based on waveColorIndex
+    drawEthereumLogo(x * xspacing, 650 + yvalues[x], 40);
+    popStyle(); // Restore the previous style settings
+    
+    // Update waveColorIndex for next square
+    //waveColorIndex = (waveColorIndex + 1) % waveColors.length;
+  }
+}
+
+// actually drawing everything/ where the magic happens
+void draw() {
+    // how fast the camera moves
+    camAngle += 0.005;
+    // Larger radius for camera movement
+    camX = width / 2 + sin(camAngle) * 300;
+    camY = height / 2 + cos(camAngle) * 300;
+    camera(camX, camY, camZ, width / 2, height / 2, 0, 0, 1, 0);
+
+    background(0);
+    
+    // Draw 3D boxes
+    draw3DBoxes();
+    // Calculate the wave
+    calcWave();
+    // Draw the wave of ethereum logos
+    renderWave();
+
+    // Iterate over the chains to update and display them
+    for (int i = 0; i < chains.size(); i++) {
+        Chain chain = chains.get(i);
+        chain.updateAndDisplay();
+        chain.drawNetworkConnections();
+
+        // Check if the chain has reached 20 hexagons to add new chain
+        if (chain.hexagons.size() >= 20) {
+            Chain newChain;
+            color newColor;
+
+            // Determine the color of the new chain based on the current chain's color
+            if (chain.chainColor == optimismColor) { // OP chain
+                newColor = baseColor; // Create base chain
+                
+            } else if (chain.chainColor == baseColor) { // Base chain
+                newColor = ethereumColor; // Create ETH chain
+            } else {
+                continue; // If it's not OP or ETH, don't split
+            }
+
+            newChain = new Chain(newColor);
+            for (int j = 0; j < 10; j++) {
+                float hexSize = random(20, 60);
+                Hexagon hex = chain.hexagons.remove(0);
+                newChain.addHexagon(new Hexagon(hex.center.x, hex.center.y, hexSize, newColor));
+            }
+            chains.add(newChain);
+        }
+    }
+}
