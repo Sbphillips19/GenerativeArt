@@ -1,0 +1,40 @@
+import turtle
+import random
+
+def draw_hexagon(size, color, position):
+    turtle.penup()
+    turtle.goto(position)
+    turtle.pendown()
+    turtle.color(color)
+    turtle.begin_fill()
+    for _ in range(6):
+        turtle.forward(size)
+        turtle.right(60)
+    turtle.end_fill()
+
+def draw_nested_hexagons(position, num_layers):
+    size_decrement = 10  # Increase this value to have nested hexagons further inside
+    colors = ["red", "white"]  # Alternating colors for layers
+    size = 40
+    for i in range(num_layers):
+        draw_hexagon(size - i * size_decrement, colors[i % len(colors)], position)
+
+
+def generate_artwork(num_hexagons):
+    positions = [(random.randint(-300, 300), random.randint(-300, 300)) for _ in range(num_hexagons)]
+
+    for i, pos in enumerate(positions):
+        draw_nested_hexagons(pos, 3)  # Drawing layered hexagons
+        if i < len(positions) - 1:
+            # Drawing a line to the next hexagon
+            turtle.penup()
+            turtle.goto(pos)
+            turtle.pendown()
+            turtle.goto(positions[i + 1])
+            turtle.penup()
+
+turtle.speed(0)
+turtle.Screen().bgcolor("white")
+generate_artwork(10)  # Number of hexagons
+turtle.hideturtle()
+turtle.done()
